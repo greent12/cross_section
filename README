@@ -1,0 +1,14 @@
+This package does cross sections through 3d variables in either lat-lon grids or lambert conformal grids. The general procedure is this: 
+1. Read in whatever 3d variables you want along with the coordinate variables, being lats,lons, and vertical coordinate
+2. create lat and lon points for the cross section and calculate distances of these points using the "create_cross_latlon_points" routine in "create_cross_points" module
+3. Calculate cross section slice with "cross section" routine in "cross_section" module
+
+
+Python modules needed:
+numpy
+matplotlib
+geopy
+scipy
+xarray
+math
+
