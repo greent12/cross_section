@@ -1,4 +1,4 @@
-from recenter_utils import haversine
+from haversine import haversine
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -150,7 +150,50 @@ def create_cross_latlon_points(lons2d,lats2d,lon_center,lat_center,inbound_outbo
    latpoints = latpoints[np.ix_(valid_points)]
     
    #Calculate the distance of each lat/lon point form the cross section center
-   distance_from_center = np.array([ haversine(lonpoints[i],latpoints[i],lon_center,lat_center) for i in range(len(latpoints)) ])
+   distance_from_center = haversine(lonpoints,latpoints,lon_center,lat_center)
+#   distance_from_center = np.array([ haversine(lonpoints[i],latpoints[i],lon_center,lat_center) for i in range(len(latpoints)) ])
    distance_from_center[0:int(np.floor(len(distance_from_center)/2))] = -distance_from_center[0:int(np.floor(len(distance_from_center)/2))]
 
    return lonpoints,latpoints,distance_from_center
+
+def correct_distance(lonpoints,latpoints,distance,lon0,lat0):
+   '''
+    This function corrects the distance from center so that any point to the "left" of the center point is a negative distance.
+
+    INPUTS
+    ------
+    lonpoints : numpy.ndarray 
+      1d array of longitude points of the cross section path
+    latpoints : numpy.ndarray
+      1d array of latitude points of the cross section path
+    distance : numpy.ndarray
+      1d array same size as lonpoints/latpoints of distance away from the TC center
+    lon0 : float
+      longitude of TC center
+    lat0 : float
+      latitude of TC center
+    
+    OUTPUTS
+    -------
+    distance : numpy.ndarray
+      1d array with same size as input distance with corrected distances
+
+   '''
+
+   minval_loc = np.where(distance == np.min(distance))[0][0]
+   testlon = lonpoints[minval_loc]
+   testlat = latpoints[minval_loc]
+
+   if lonpoints[0] == lonpoints[-1]:
+      if testlat < lat0:
+         distance[0:minval_loc+1] = -1.*distance[0:minval_loc+1]
+      else:
+         distance[0:minval_loc] = -1.*distance[0:minval_loc]
+   else:
+      if testlon < lon0:
+         distance[0:minval_loc+1] = -1.*distance[0:minval_loc+1]
+      else:
+         distance[0:minval_loc] = -1.*distance[0:minval_loc]
+
+   return distance
+

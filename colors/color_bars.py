@@ -319,4 +319,9 @@ def Tyler_colors(variable):
         cmap = colors.ListedColormap(colors_z)
         norm = colors.BoundaryNorm(ticks,cmap.N)
 
+    elif variable == "temp":
+        cmap = cm.hot_r
+        norm = colors.Normalize(vmin=200,vmax=300)
+        ticks = np.arange(200,325,5.0)
+
     return cmap, norm, ticks 

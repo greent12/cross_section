@@ -29,15 +29,18 @@ from read_trwind import read_trwind_file
 from create_cross_points import create_cross_latlon_points
 from cross_section import cross_section
 from create_output_dir import create_output_directory
+from read_nc_variable import read_nc_variables
+from correct_radial import correct_radial_winds
 
 ####################################################
 # INPUTS
 ####################################################
 twind_file="/Users/tylergreen/Cha_triple_dop_anl/pass_1_trwind/Cha_pass_1.nc"
+samurai_file="/Users/tylergreen/Cha_triple_dop_anl/pass1_triple.nc"
 inbound_outbound_dist=100.
 angle=45.
 hor_contour_lev = 1.0 #km
-date="20161006 19:17"
+date="201610061917"
 plot_recon=False
 recon_file="/Users/tylergreen/matthew_results/realdeal/gbradar/201610061900/recon_obs.txt"
 vert_coord  = "altitude"
@@ -49,34 +52,35 @@ secondary_circ=True
 #Read trwind file
 lons2d,lats2d,heights,twind,rwind,tc_lons,tc_lats = read_trwind_file(twind_file,latcoord,loncoord,vert_coord)
 
+lons1d = lons2d[0,:]
+lats1d = lats2d[:,0]
+
 #Check heights (they might come out in km)
 if np.max(heights) < 1000.:
    heights=heights*1000.
-
-#For lat-lon grid-------
-#Get the 1d version of lats and lons for interpolating function
-#lons1d = lons2d[0,:]
-#lats1d = lats2d[:,0]
-#------------------------------
 
 #Get points for the cross section and their distance from the center of cross section
 lonpoints,latpoints,distance_from_center = create_cross_latlon_points(lons2d,lats2d,tc_lons[0],tc_lats[0],inbound_outbound_dist,angle)
 
 #Calculate cross section
+if secondary_circ:
+   lats_samuri,lons_samuri,vardict = read_nc_variables(samurai_file,latcoord,loncoord,vert_coord,"W")
+   w=np.squeeze(vardict["W"])
 
-#LCC grid
-myslice = cross_section(lons2d,lats2d,heights,twind*constants.msToKnots,lonpoints,latpoints)
+myslice_twind = cross_section(lons1d,lats1d,heights,twind*constants.msToKnots,lonpoints,latpoints)
 
-#Lat-lon grid
-#myslice = cross_section(lons1d,lats1d,heights,twind*constants.msToKnots,lonpoints,latpoints)
+if secondary_circ:
+   myslice_rwind = cross_section(lons1d,lats1d,heights,rwind*constants.msToKnots,lonpoints,latpoints)
+   myslice_w = cross_section(lons1d,lats1d,heights,w*constants.msToKnots,lonpoints,latpoints)
+   rwind_slice_corrected = correct_radial_winds(lonpoints,latpoints,myslice_rwind,tc_lons,tc_lats)
 
 #Plot
 distancemesh,heightmesh = np.meshgrid(distance_from_center,heights,indexing='ij')
 
-fig,ax = plt.subplots(figsize=(12,8))
+fig,ax = plt.subplots(figsize=(15,9))
 divider = make_axes_locatable(ax)
 cax = divider.append_axes("right", size="5%", pad=0.5)
-cf=ax.contourf(distancemesh,heightmesh,myslice,ticks,cmap=cmap,norm=norm,alpha=0.9,extend='both')
+cf=ax.contourf(distancemesh,heightmesh,myslice_twind,ticks,cmap=cmap,norm=norm,alpha=0.9,extend='both')
 ax.set_ylabel("Height (km)")
 ax.set_xlabel("Distance from TC Center (km)")
 ax.set_xlim(left=-inbound_outbound_dist-5,right=inbound_outbound_dist+5)
@@ -84,6 +88,13 @@ ax.set_xticks(np.arange(-inbound_outbound_dist,inbound_outbound_dist+1,25))
 ax.set_ylim(bottom=0,top=15000.)
 cb = plt.colorbar(cf,cax=cax,ticks = [7,25,40,52,64,96,125,155])
 cb.set_label("Tangential Wind Speed (kts)")
+
+skipx=2
+skipy=1
+
+if secondary_circ:
+   w_slice_corrected = myslice_w*3
+   ax.quiver(distancemesh[::skipx,::skipy],heightmesh[::skipx,::skipy],rwind_slice_corrected[::skipx,::skipy],w_slice_corrected[::skipx,::skipy],pivot="mid")
 
 #inset plot of horizonta tangetial wind
 axins = ax.inset_axes([0.75, 0.7, 0.28, 0.3])
@@ -113,7 +124,6 @@ r = calc_distance_from_point(lons2d,lats2d,tc_lons[0],tc_lats[0])
 m.contour(lons2d,lats2d,r,np.arange(50,200,50),colors="black",linestyles="dashed")
 
 ax.set_title("Tangential Wind Cross Section")
-
 
 #Save
 twind_filepath = create_output_directory(twind_file)
