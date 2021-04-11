@@ -32,27 +32,41 @@ from create_output_dir import create_output_directory
 from uv_to_rt_winds import uv_to_rt
 from pygrib_util import *
 from recon_utils import *
+
 ####################################################
 # INPUTS
 ####################################################
-twind_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610062200/trwind_anal/matthew_201610062200_anal_trwind.nc"
-grib_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610062200/wrfout_201610062200_gbradar_anl.grib"
-inbound_outbound_dist=100.
-angle=45.
-hor_contour_lev = 1.0 #km
-date="201610062040"
-plot_recon=True
-save_recon=True
-recon_file="/mnt/lfs1/HFIP/hybda/greent/verify_recon/gbradar_201610062200/results_conv_ges.2016100622"
+twind_file=str(sys.argv[1])
+grib_file=str(sys.argv[2])
+inbound_outbound_dist=float(sys.argv[3])
+angle=float(sys.argv[4])
+hor_contour_lev=float(sys.argv[5])
+date=str(sys.argv[6])
+plot_recon= str(sys.argv[7]) == "True"
+save_recon = True
+recon_file=str(sys.argv[8]) 
+secondary_circ= str(sys.argv[9]) == "True"
+recon_ob_diff=str(sys.argv[10]) == "True"
+center_recon=str(sys.argv[11]) == "True"
+recon_center_fix_lat=float(sys.argv[12])
+recon_center_fix_lon=float(sys.argv[13])
+#twind_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610061900/trwind_anal/matthew_201610061900_anal_trwind.nc"
+#grib_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610061900/wrfout_201610061900_gbradar_anl.grib"
+#inbound_outbound_dist=100.
+#angle=45.
+#hor_contour_lev = 1.0 #km
+#date="201610061917"
+#plot_recon=True
+#recon_file="/mnt/lfs1/HFIP/hybda/greent/verify_recon/test/results_conv_ges.2016100619"
 vert_coord  = "heightAboveSea"
 latcoord = "latitude"
 loncoord = "longitude"
-secondary_circ=False
+#secondary_circ=False
 recon_var="uv"
-recon_ob_diff=False
-center_recon=True
-recon_center_fix=[26.347,-78.796]
-
+#recon_ob_diff=False
+#center_recon=True
+#recon_center_fix=(25.829,-78.373)
+recon_center_fix=[recon_center_fix_lat,recon_center_fix_lon]
 ####################################################
 # READ IN DATA FROM FILES
 ####################################################
@@ -163,7 +177,7 @@ if plot_recon:
      
    if save_recon:
       save_recon_obs(rradius,rheights,twind_recon)
- 
+
 ####################################################
 #PLOT
 ####################################################

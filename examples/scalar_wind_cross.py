@@ -29,32 +29,21 @@ from read_trwind import read_trwind_file
 from create_cross_points import create_cross_latlon_points
 from cross_section import cross_section
 from create_output_dir import create_output_directory
-from uv_to_rt_winds import uv_to_rt
-from pygrib_util import *
-from recon_utils import *
+
 ####################################################
 # INPUTS
 ####################################################
-twind_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610062200/trwind_anal/matthew_201610062200_anal_trwind.nc"
-grib_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbradar/back_anal/201610062200/wrfout_201610062200_gbradar_anl.grib"
+twind_file="/mnt/lfs1/HFIP/hybda/greent/realdeal/results/gbtdr/back_anal/201610061900/tryagain/matthew_201610061900_anal_trwind.nc"
 inbound_outbound_dist=100.
 angle=45.
-hor_contour_lev = 1.0 #km
-date="201610062040"
-plot_recon=True
-save_recon=True
-recon_file="/mnt/lfs1/HFIP/hybda/greent/verify_recon/gbradar_201610062200/results_conv_ges.2016100622"
+hor_contour_lev = 6.0 #km
+date="201610061917"
+plot_recon=False
+recon_file="/Users/tylergreen/matthew_results/realdeal/gbradar/201610061900/recon_obs.txt"
 vert_coord  = "heightAboveSea"
 latcoord = "latitude"
 loncoord = "longitude"
 secondary_circ=False
-recon_var="uv"
-recon_ob_diff=False
-center_recon=True
-recon_center_fix=[26.347,-78.796]
-
-####################################################
-# READ IN DATA FROM FILES
 ####################################################
 
 #Read trwind file
@@ -63,10 +52,6 @@ lons2d,lats2d,heights,twind,rwind,tc_lons,tc_lats = read_trwind_file(twind_file,
 #Check heights (they might come out in km)
 if np.max(heights) < 1000.:
    heights=heights*1000.
-
-####################################################
-#CREATE CROSS SECTION
-####################################################
 
 #For lat-lon grid-------
 #Get the 1d version of lats and lons for interpolating function
@@ -83,90 +68,8 @@ lonpoints,latpoints,distance_from_center = create_cross_latlon_points(lons2d,lat
 #myslice = cross_section(lons2d,lats2d,heights,twind*constants.msToKnots,lonpoints,latpoints)
 
 #Lat-lon grid
-myslice = cross_section(lons1d,lats1d,heights,twind*constants.msToKnots,lonpoints,latpoints)
-
-####################################################
-#RECON OBSERVATIONS
-####################################################
-if plot_recon:
-   print("Doing some calculations for recon obs.. one second")
-
-   #Get heights on pressure surfaces, cant use xarray to get this variable
-   lats_grib,lons_grib,plevs,heightsOnP = pygrib_get_3d_var(grib_file,"Geopotential Height","isobaricInhPa")
-
-   #Read data out of recon file
-   vartype,rtimes,rlats,rlons,rp,rusag,val1,inc1,val2,inc2=read_file(recon_file)
-
-   #Recenter the recon observations based on the difference between model center and recon center
-   if center_recon:
-      dlat = tc_lats[0] - recon_center_fix[0]
-      dlon = tc_lons[0] - recon_center_fix[1]
-      rlats = rlats + dlat
-      rlons = rlons + dlon
-      recon_center_fix[0] = recon_center_fix[0] + dlat
-      recon_center_fix[1] = recon_center_fix[1] + dlon
-
-   #Only keep observations within 10.0 km of cross section and convert them into polar coords
-   rlons,rlats,rheights,rradius,rindx=recon_trim_convert(lonpoints,latpoints,lons2d,lats2d,plevs,heightsOnP,rlons,rlats,rp,10.0,tc_lons[0],tc_lats[0],angle)
-
-   #lons,lats were trimmed when they came out of above function, trim other variables
-   vartype=vartype[rindx]
-   rtimes=rtimes[rindx]
-   rusag=rusag[rindx]
-   val1=val1[rindx]
-   inc1=inc1[rindx]
-   val2=val2[rindx]
-   inc2=inc2[rindx]
-
-   #Only keep recon obs that match the wanted recon variable
-   where_vartype = vartype == recon_var
-
-   #Trim again
-   rlons=rlons[where_vartype]
-   rlats=rlats[where_vartype]
-   vartype=vartype[where_vartype]
-   rtimes=rtimes[where_vartype]
-   rusag=rusag[where_vartype]
-   val1=val1[where_vartype]
-   inc1=inc1[where_vartype]
-   val2=val2[where_vartype]
-   inc2=inc2[where_vartype]
-   rradius=rradius[where_vartype]
-   rheights=rheights[where_vartype]
-
-   #Calculate tangential winds from recon uv winds
-   lat0=recon_center_fix[0]
-   lon0=recon_center_fix[1]
-   urecon = val1
-   vrecon = val2
-   rwind_recon,twind_recon = uv_to_rt(rlons,rlats,urecon,vrecon,lon0,lat0)
-   twind_recon = twind_recon*constants.msToKnots
-
-   #If difference between model and recon obs is wanted
-   if recon_ob_diff:
-      where_inrange = np.abs(rradius)<inbound_outbound_dist
-      twind_recon=twind_recon[where_inrange]
-      rtimes=rtimes[where_inrange]
-      rusag=rusag[where_inrange]
-      val1=val1[where_inrange]
-      inc1=inc1[where_inrange]
-      val2=val2[where_inrange]
-      inc2=inc2[where_inrange]
-      rradius=rradius[where_inrange]
-      rheights=rheights[where_inrange]
-
-      #Interpolate model to ob points
-      slice_interp = interp_model_cross_section_to_recon_obs(heights,distance_from_center,myslice,rradius,rheights)
-
-      #model interpolated value - ob value
-      val_diff = slice_interp - twind_recon
-     
-   if save_recon:
-      save_recon_obs(rradius,rheights,twind_recon)
- 
-####################################################
-#PLOT
-####################################################
+scalar_wind=np.sqrt(twind**2+rwind**2)
+myslice = cross_section(lons1d,lats1d,heights,scalar_wind*constants.msToKnots,lonpoints,latpoints)
 
 #Plot
 distancemesh,heightmesh = np.meshgrid(distance_from_center,heights,indexing='ij')
@@ -183,15 +86,6 @@ ax.set_ylim(bottom=0,top=15000.)
 cb = plt.colorbar(cf,cax=cax,ticks = [7,25,40,52,64,96,125,155])
 cb.set_label("Tangential Wind Speed (kts)")
 
-if plot_recon:
-   if recon_ob_diff:
-      scat=ax.scatter(rradius,rheights,c=val_diff,cmap="seismic",vmin=-20,vmax=20)
-      cax2 = divider.append_axes("right",size="2%",pad=1)
-      cb2 = plt.colorbar(scat,cax=cax2)
-      cb2.set_label("Tangential Wind Difference (K)")
-   else:
-      scat=ax.scatter(rradius,rheights,c = twind_recon,cmap=cmap,norm=norm,alpha=0.9)
-
 #inset plot of horizonta tangetial wind
 axins = ax.inset_axes([0.75, 0.7, 0.28, 0.3])
 m = Basemap(projection = 'cyl',llcrnrlon=tc_lons[0]-1.5,llcrnrlat=tc_lats[0]-1.5,urcrnrlon=tc_lons[0]+1.5,urcrnrlat=tc_lats[0]+1.5,resolution='i',ax=axins)
@@ -206,8 +100,8 @@ m.plot(lonpoints[-1],latpoints[-1],'ro',markersize=4)
 
 #Read recon obs
 if plot_recon:
+   rtimes,rlats,rlons,rp = read_recon_obs.read_file(recon_file)
    axins.scatter(rlons,rlats,c="black",s=3)
-   m.plot(lon0,lat0,'bo',markersize=3)
 
 axins.text(0.2, 0.025, '{} km Vt'.format(heights[hindex]/1000.), horizontalalignment='center',verticalalignment='center', transform=axins.transAxes)
 greendot_dist = -1.0*haversine(lonpoints[0],latpoints[0],tc_lons[0],tc_lats[0])
@@ -219,11 +113,12 @@ ax.plot(reddot_dist,0.2,'ro',markersize=10)
 r = calc_distance_from_point(lons2d,lats2d,tc_lons[0],tc_lats[0])
 m.contour(lons2d,lats2d,r,np.arange(50,200,50),colors="black",linestyles="dashed")
 
-ax.set_title("Tangential Wind Cross Section")
+ax.set_title("Scalar Wind Cross Section")
+
 
 #Save
 twind_filepath = create_output_directory(twind_file)
-plt.savefig(twind_filepath+"/twind_cross_{}_{}deg.png".format(date,str(angle)),dpi=500)
+plt.savefig(twind_filepath+"/swind_cross_{}_{}deg.png".format(date,str(angle)),dpi=500)
 plt.show()
 
 

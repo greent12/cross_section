@@ -14,6 +14,8 @@ def read_file(file):
    names = ['vartype','ID','type','time','lat','lon','pressure','usag','val1','inc1','val2','inc2']
    data = pd.read_csv(file,usecols=[0,2,4,5,6,7,8,9,10,11,12,13],header=None,names=names,delim_whitespace=True)
 
+   data = data[(data.usag==1)]
+
    #Longitude correction if they are from 0-360
    if any(data.lon.values>180.):
       lons=data.lon.values-180
@@ -34,6 +36,14 @@ def read_file(file):
 
    return vartype,time,lats,lons,pres,usag,val1,inc1,val2,inc2 
 
+def save_recon_obs(radius,heights,variable):
+   ''' The point of this routine is to save the tranformed recon observations' in height/radius coords'''
+   f=open("recon_obs_save.txt","w")
+   for r,height,var in zip(radius,heights,variable):
+      f.write("{0:7.2f} {1:7.2f} {2:7.2f}\n".format(r,height,var))
+   f.close()
+   return
+ 
 def find_close_recon_obs(cross_lons,cross_lats,ob_lons,ob_lats,dthresh):
 
    '''
